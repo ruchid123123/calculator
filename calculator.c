@@ -97,6 +97,86 @@ static GtkWidget *create_button(const char *label, GCallback callback, gpointer 
     return btn;
 }
 
+/* Platform-specific includes for icon loading */
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
+static void load_window_icon(GtkWidget *window, const char *argv0) {
+    /* Platform-specific icon paths */
+#if defined(_WIN32)
+    /* Windows: prefer .ico files */
+    const char *icon_paths[] = {
+        "icon.ico",
+        "calculator.ico",
+        "assets/icon.ico",
+        "icon.png",
+        "calculator.png",
+        NULL
+    };
+#elif defined(__APPLE__) && TARGET_OS_MAC
+    /* macOS: prefer .icns files */
+    const char *icon_paths[] = {
+        "icon.icns",
+        "calculator.icns",
+        "icon.png",
+        "calculator.png",
+        "assets/icon.png",
+        NULL
+    };
+#else
+    /* Linux/Unix: prefer .png files */
+    const char *icon_paths[] = {
+        "icon.png",
+        "calculator.png",
+        "assets/icon.png",
+        "assets/calculator.png",
+        NULL
+    };
+#endif
+
+    /* Try relative to executable directory */
+    char exec_dir[512] = "";
+    if (argv0) {
+#ifdef _WIN32
+        const char *last_sep = strrchr(argv0, '\\');
+#else
+        const char *last_sep = strrchr(argv0, '/');
+#endif
+        if (last_sep) {
+            size_t len = last_sep - argv0;
+            if (len < sizeof(exec_dir)) {
+                strncpy(exec_dir, argv0, len);
+                exec_dir[len] = '\0';
+            }
+        }
+    }
+
+    for (int i = 0; icon_paths[i]; i++) {
+        GdkPixbuf *icon = NULL;
+
+        /* Try relative to executable */
+        if (exec_dir[0]) {
+            char path[640];
+            snprintf(path, sizeof(path), "%s/%s", exec_dir, icon_paths[i]);
+            if (g_file_test(path, G_FILE_TEST_EXISTS)) {
+                icon = gdk_pixbuf_new_from_file(path, NULL);
+            }
+        }
+
+        /* Try current working directory */
+        if (!icon && g_file_test(icon_paths[i], G_FILE_TEST_EXISTS)) {
+            icon = gdk_pixbuf_new_from_file(icon_paths[i], NULL);
+        }
+
+        if (icon) {
+            gtk_window_set_icon(GTK_WINDOW(window), icon);
+            g_object_unref(icon);
+            return;
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
     gtk_init(&argc, &argv);
 
@@ -105,6 +185,14 @@ int main(int argc, char *argv[]) {
     gtk_window_set_default_size(GTK_WINDOW(window), 300, 400);
     gtk_window_set_resizable(GTK_WINDOW(window), FALSE);
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+
+    /* Set WM_CLASS for window manager/dock integration */
+    gtk_window_set_wmclass(GTK_WINDOW(window), "calculator", "Calculator");
+
+    /* Load icon if available */
+    if (argc > 0) {
+        load_window_icon(window, argv[0]);
+    }
 
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
     gtk_container_set_border_width(GTK_CONTAINER(vbox), 10);

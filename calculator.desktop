@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Calculator
+Name[zh_CN]=计算器
+Comment=Simple GTK Calculator
+Comment[zh_CN]=简易GTK计算器
+Exec=/home/j/1/calculator
+Icon=/home/j/1/icon.png
+Type=Application
+Terminal=false
+Categories=Utility;Calculator;
+Keywords=calculator;math;calc;
+StartupNotify=true
